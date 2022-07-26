@@ -1,6 +1,9 @@
 #include <DHT.h>
 #include <ESP8266WiFi.h>
 #include <Arduino.h>
+#include <RemoteMe.h>
+#include <RemoteMeSocketConnector.h>
+
 
 #define DHT_PIN 5
 #define DHTTYPE DHT22
@@ -8,11 +11,16 @@ DHT dht(DHT_PIN, DHTTYPE);
 unsigned long lastMeasure = 0;
 const long timestep = 2 * 1000; //seconds * milliseconds
 
-const char* ssid = "Westerbleichstr. 58";
-const char* password = "WeBleStr58";
+#define WIFI_NAME "Westerbleichstr. 58"
+#define WIFI_PASSWORD "WeBleStr58"
+#define DEVICE_ID 2
+#define DEVICE_NAME "espmega"
+#define TOKEN "~1282595_nCVdBbs0mWWCU182f8WwGEAK"
+
+RemoteMe& remoteMe = RemoteMe::getInstance(TOKEN, DEVICE_ID);
 
 void startWifi() {
-  WiFi.begin(ssid, password);
+  WiFi.begin(WIFI_NAME, WIFI_PASSWORD);
   Serial.println("Connecting to WiFi");
   int conntimer=0;
   while (WiFi.status() != WL_CONNECTED) {
@@ -23,6 +31,8 @@ void startWifi() {
   }
   Serial.println("-----------------");
   Serial.println(WiFi.localIP());
+  remoteMe.setConnector(new RemoteMeSocketConnector());
+	remoteMe.sendRegisterDeviceMessage(DEVICE_NAME);
 }
 
 void setup() {
@@ -35,6 +45,7 @@ void setup() {
 }
 
 void loop() {
+  remoteMe.loop();
   if (millis() - lastMeasure > timestep) {
     lastMeasure = millis();
     float hs = dht.readHumidity(); //Luftfeuchte auslesen
