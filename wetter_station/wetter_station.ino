@@ -9,7 +9,7 @@
 #define DHTTYPE DHT22
 DHT dht(DHT_PIN, DHTTYPE);
 unsigned long lastMeasure = 0;
-const long timestep = 2 * 1000; //seconds * milliseconds
+long timestep = 10 * 1000; //seconds * milliseconds
 
 #define WIFI_NAME "Westerbleichstr. 58"
 #define WIFI_PASSWORD "WeBleStr58"
@@ -18,6 +18,15 @@ const long timestep = 2 * 1000; //seconds * milliseconds
 #define TOKEN "~1282595_nCVdBbs0mWWCU182f8WwGEAK"
 
 RemoteMe& remoteMe = RemoteMe::getInstance(TOKEN, DEVICE_ID);
+
+inline void setHumm(double d) {remoteMe.getVariables()->setDouble("humidity", d); }
+inline void setTemp(double d) {remoteMe.getVariables()->setDouble("temperatur", d); }
+
+void onSleeptimeChange(int sleeptime){
+  timestep=sleeptime;
+  Serial.print("New sleeptime:");
+  Serial.println(sleeptime);
+}
 
 void startWifi() {
   WiFi.begin(WIFI_NAME, WIFI_PASSWORD);
@@ -31,6 +40,7 @@ void startWifi() {
   }
   Serial.println("-----------------");
   Serial.println(WiFi.localIP());
+  remoteMe.getVariables()->observeInteger("weather_sleeptime", onSleeptimeChange);
   remoteMe.setConnector(new RemoteMeSocketConnector());
 	remoteMe.sendRegisterDeviceMessage(DEVICE_NAME);
 }
@@ -41,25 +51,29 @@ void setup() {
   Serial.begin(115200);
   delay(1500);
   startWifi();
-  Serial.print("setup done");
+  Serial.println("setup done");
 }
 
 void loop() {
-  remoteMe.loop();
   if (millis() - lastMeasure > timestep) {
     lastMeasure = millis();
-    float hs = dht.readHumidity(); //Luftfeuchte auslesen
-    float ts = dht.readTemperature(); //Temperatur auslesen
-
+    double hs = dht.readHumidity(); //Luftfeuchte auslesen
+    double ts = dht.readTemperature(); //Temperatur auslesen
     displayValues(hs, ts);
-  }
 
+    if(!remoteMe.loop()){//no connection established
+        return;
+    }
+    setHumm(hs);
+    setTemp(ts);
+  }
 }
 
 void displayValues(float hum, float temp) {
-  if (isnan(hum)) {
+  if(isnan(hum)) {
     Serial.println("Fehler! NaN");
   } else {
     Serial.print(hum); Serial.print(" "); Serial.println(temp);
   }
+
 }
